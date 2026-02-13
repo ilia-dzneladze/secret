@@ -1,98 +1,323 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
+import { useEffect, useRef, useState } from "react";
+import {
+  Dimensions,
+  Image,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
+import Animated, {
+  Easing,
+  FadeIn,
+  useAnimatedStyle,
+  useSharedValue,
+  withDelay,
+  withSequence,
+  withSpring,
+  withTiming,
+} from "react-native-reanimated";
 
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+const heartImg = require("../../assets/images/heart.png");
+const pilotSnoopyImg = require("../../assets/images/pilotSnoopy.png");
+const sleepSnoopyImg = require("../../assets/images/sleepSnoopy.png");
+const angrySnoopyImg = require("../../assets/images/angrySnoopy.png");
+const loveSnoopyImg = require("../../assets/images/loveSnoopy.png");
 
-export default function HomeScreen() {
+const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get("window");
+
+const HEART_COUNT = 18;
+const HEART_SIZES = [36, 44, 52, 60, 68];
+
+// ─── Heart particle (uses heart.png) ────────────────────────────
+function FloatingHeart({
+  index,
+  onPopped,
+}: {
+  index: number;
+  onPopped: () => void;
+}) {
+  const size = HEART_SIZES[index % HEART_SIZES.length];
+  const startX = Math.random() * (SCREEN_W - size);
+  const startY = SCREEN_H + 40 + Math.random() * 120;
+
+  const translateY = useSharedValue(0);
+  const translateX = useSharedValue(0);
+  const scale = useSharedValue(0);
+  const opacity = useSharedValue(1);
+  const rotation = useSharedValue(0);
+
+  useEffect(() => {
+    const delay = index * 120;
+    const riseDistance = -(SCREEN_H * 0.45 + Math.random() * SCREEN_H * 0.3);
+    const drift = (Math.random() - 0.5) * 120;
+    const riseDuration = 1600 + Math.random() * 600;
+
+    scale.value = withDelay(
+      delay,
+      withSpring(1, { damping: 6, stiffness: 120 })
+    );
+    rotation.value = withDelay(
+      delay,
+      withTiming((Math.random() - 0.5) * 30, { duration: riseDuration })
+    );
+    translateY.value = withDelay(
+      delay,
+      withTiming(riseDistance, {
+        duration: riseDuration,
+        easing: Easing.out(Easing.quad),
+      })
+    );
+    translateX.value = withDelay(
+      delay,
+      withTiming(drift, { duration: riseDuration })
+    );
+
+    const popStart = delay + riseDuration;
+    scale.value = withDelay(
+      popStart,
+      withSequence(
+        withTiming(1.5, { duration: 120 }),
+        withTiming(0, { duration: 100 })
+      )
+    );
+    opacity.value = withDelay(
+      popStart + 180,
+      withTiming(0, { duration: 60 })
+    );
+
+    const totalDuration = popStart + 180 + 60;
+    const timer = setTimeout(onPopped, totalDuration);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [
+      { translateY: translateY.value },
+      { translateX: translateX.value },
+      { scale: scale.value },
+      { rotate: `${rotation.value}deg` },
+    ],
+    opacity: opacity.value,
+  }));
+
   return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+    <Animated.View
+      style={[
+        { position: "absolute", left: startX, top: startY, width: size, height: size },
+        animStyle,
+      ]}
+    >
+      <Image source={heartImg} style={{ width: size, height: size }} resizeMode="contain" />
+    </Animated.View>
+  );
+}
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+// ─── Pilot Snoopy flying across the top ─────────────────────────
+function FlyingSnoopy() {
+  const translateX = useSharedValue(-180);
+
+  useEffect(() => {
+    translateX.value = withDelay(
+      400,
+      withTiming(SCREEN_W + 180, {
+        duration: 3500,
+        easing: Easing.inOut(Easing.quad),
+      })
+    );
+  }, []);
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
+  return (
+    <Animated.View style={[styles.flyingSnoopy, animStyle]}>
+      <Image source={pilotSnoopyImg} style={styles.pilotImg} resizeMode="contain" />
+    </Animated.View>
+  );
+}
+
+// ─── No button with Snoopy reactions ────────────────────────────
+function NoButton({
+  onPress,
+  onHoverIn,
+  onHoverOut,
+}: {
+  onPress: () => void;
+  onHoverIn: () => void;
+  onHoverOut: () => void;
+}) {
+  const offsetX = useSharedValue(0);
+
+  const handlePress = () => {
+    offsetX.value = withTiming(-SCREEN_W, {
+      duration: 600,
+      easing: Easing.in(Easing.quad),
+    });
+    onPress();
+  };
+
+  const animStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: offsetX.value }],
+  }));
+
+  return (
+    <Animated.View style={animStyle}>
+      <Pressable
+        onPress={handlePress}
+        onHoverIn={onHoverIn}
+        onHoverOut={onHoverOut}
+        style={styles.noButton}
+      >
+        <Text style={styles.buttonText}>No</Text>
+      </Pressable>
+    </Animated.View>
+  );
+}
+
+// ─── Main screen ────────────────────────────────────────────────
+export default function Index() {
+  const [phase, setPhase] = useState<"hearts" | "question" | "love">("hearts");
+  const [snoopyAngry, setSnoopyAngry] = useState(false);
+  const poppedCount = useRef(0);
+
+  const handlePopped = () => {
+    poppedCount.current += 1;
+    if (poppedCount.current >= HEART_COUNT) {
+      setPhase("question");
+    }
+  };
+
+  return (
+    <View style={styles.container}>
+      {/* ── Hearts intro + flying Snoopy ── */}
+      {phase === "hearts" && (
+        <View style={StyleSheet.absoluteFill}>
+          {Array.from({ length: HEART_COUNT }).map((_, i) => (
+            <FloatingHeart key={i} index={i} onPopped={handlePopped} />
+          ))}
+          <FlyingSnoopy />
+        </View>
+      )}
+
+      {/* ── Valentine question ── */}
+      {phase === "question" && (
+        <Animated.View
+          entering={FadeIn.duration(800)}
+          style={styles.center}
+        >
+          <Text style={styles.questionText}>Will you be my valentine?</Text>
+
+          <View style={styles.options}>
+            <Pressable
+              onPress={() => setPhase("love")}
+              style={styles.yesButton}
+            >
+              <Text style={styles.buttonText}>Yes</Text>
+            </Pressable>
+
+            <NoButton
+              onPress={() => setSnoopyAngry(true)}
+              onHoverIn={() => setSnoopyAngry(true)}
+              onHoverOut={() => setSnoopyAngry(false)}
+            />
+          </View>
+
+          {/* Sleepy / Angry Snoopy under buttons */}
+          <Image
+            source={snoopyAngry ? angrySnoopyImg : sleepSnoopyImg}
+            style={snoopyAngry ? styles.angrySnoopyImg : styles.sleepSnoopyImg}
+            resizeMode="contain"
+          />
+        </Animated.View>
+      )}
+
+      {/* ── I Love You ── */}
+      {phase === "love" && (
+        <Animated.View
+          entering={FadeIn.duration(600)}
+          style={styles.center}
+        >
+          <Image
+            source={loveSnoopyImg}
+            style={styles.loveSnoopyImg}
+            resizeMode="contain"
+          />
+          <Text style={styles.loveText}>I Love You!</Text>
+        </Animated.View>
+      )}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
+  container: {
+    flex: 1,
+    backgroundColor: "#fff0f5",
+    justifyContent: "center",
+    alignItems: "center",
   },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
+  center: {
+    alignItems: "center",
+    justifyContent: "center",
   },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
+  questionText: {
+    fontSize: 28,
+    fontWeight: "700",
+    color: "#d63384",
+    marginBottom: 32,
+    textAlign: "center",
+    paddingHorizontal: 24,
+  },
+  options: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 24,
+  },
+  yesButton: {
+    backgroundColor: "#ff1493",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  noButton: {
+    backgroundColor: "#ff69b4",
+    paddingHorizontal: 28,
+    paddingVertical: 12,
+    borderRadius: 24,
+  },
+  buttonText: {
+    color: "#fff",
+    fontSize: 18,
+    fontWeight: "600",
+  },
+  flyingSnoopy: {
+    position: "absolute",
+    top: 60,
+  },
+  pilotImg: {
+    width: 140,
+    height: 110,
+  },
+  sleepSnoopyImg: {
+    width: 180,
+    height: 70,
+    marginTop: 40,
+  },
+  angrySnoopyImg: {
+    width: 120,
+    height: 150,
+    marginTop: 24,
+  },
+  loveSnoopyImg: {
+    width: 200,
+    height: 200,
+    marginBottom: 16,
+  },
+  loveText: {
+    fontSize: 36,
+    fontWeight: "800",
+    color: "#d63384",
   },
 });
